@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>내비 실행</title>
+<style>
+ body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#111;color:#eee}
+ h1{font-size:18px;margin:0 0 4px} p{color:#aaa;margin:0 0 20px;font-size:14px}
+ a.b{display:block;padding:18px;margin:10px 0;border-radius:12px;background:#2a2a2a;color:#fff;
+     text-decoration:none;font-size:18px;text-align:center} a.main{background:#1a7f37}
+</style>
+<h1 id="t">내비 실행</h1><p id="s"></p><div id="btns"></div>
+<script>
+// 봇이 만든 링크: ?app=naver&lat=..&lng=..&name=..&via=lat,lng;lat,lng
+// 텔레그램 버튼은 https만 되므로 이 페이지가 Android intent:// 로 앱을 연다 (탭 한 번)
+const q = new URLSearchParams(location.search);
+const lat = q.get("lat"), lng = q.get("lng"), name = q.get("name") || "목적지";
+const via = (q.get("via") || "").split(";").filter(Boolean).map(s => s.split(","));
+const app = q.get("app") || "naver";
+const enc = encodeURIComponent;
+function intent(path, scheme, pkg) {
+  return `intent://${path}#Intent;scheme=${scheme};action=android.intent.action.VIEW;` +
+         `category=android.intent.category.BROWSABLE;package=${pkg};end`;
+}
+const L = {
+  naver: () => {
+    let p = `navigation?dlat=${lat}&dlng=${lng}&dname=${enc(name)}`;
+    via.slice(0, 5).forEach((v, i) => p += `&v${i+1}lat=${v[0]}&v${i+1}lng=${v[1]}&v${i+1}name=${enc("경유"+(i+1))}`);
+    return intent(p + "&appname=nav.helper.personal", "nmap", "com.nhn.android.nmap");
+  },
+  tmap: () => intent(`route?goalx=${lng}&goaly=${lat}&goalname=${enc(name)}`, "tmap", "com.skt.tmap.ku"),
+  kakao: () => intent(`route?ep=${lat},${lng}&by=CAR`, "kakaomap", "net.daum.android.map"),
+};
+const KO = {naver: "네이버지도", tmap: "티맵", kakao: "카카오맵"};
+document.getElementById("t").textContent = `${name}`;
+document.getElementById("s").textContent = via.length ? `경유지 ${via.length}개 (네이버만 전달)` : "목적지만 전달 — 앱이 실시간 재탐색";
+const box = document.getElementById("btns");
+[app, ...Object.keys(L).filter(a => a !== app)].forEach((a, i) => {
+  const el = document.createElement("a");
+  el.className = "b" + (i ? "" : " main"); el.href = L[a](); el.textContent = `▶ ${KO[a]}로 열기`;
+  box.appendChild(el);
+});
+setTimeout(() => { location.href = L[app](); }, 50);   // 자동 시도 (막히면 버튼 탭)
+</script>
+</html>
